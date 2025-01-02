@@ -62,10 +62,10 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Сохранение файла (опционально)
 	// Создаем путь к файлу
-	filePath := "../../assets/test/images/uploads/" + handler.Filename
+	filePath := "assets/test/images/uploads/" + handler.Filename
 
 	// Создаём директорию, если её нет
-	if err := os.MkdirAll("../../assets/test/images/uploads/", os.ModePerm); err != nil {
+	if err := os.MkdirAll("assets/test/images/uploads/", os.ModePerm); err != nil {
 		http.Error(w, fmt.Sprintf("Unable to create directory. Error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}

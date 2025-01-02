@@ -6,9 +6,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"go.uber.org/zap"
 
-	_ "gestia/docs" // Замените your_project_name на имя вашего модуля
+	_ "gestia/docs"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -25,6 +26,17 @@ func NewApp(logger *zap.Logger) (*App, error) {
 	r.Use(middleware.Recoverer)
 
 	r.Use(NewZapMiddleware(logger))
+
+	r.Use(cors.Handler(cors.Options{
+		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{"*"},
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           500, // Maximum value not ignored by any of major browsers
+	}))
 
 	// Настройка маршрутов
 	r.Get("/", handlers.RootHandler)
