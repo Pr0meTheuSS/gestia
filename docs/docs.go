@@ -17,15 +17,19 @@ const docTemplate = `{
     "paths": {
         "/v1/images/": {
             "get": {
-                "description": "Download an image file (JPEG/PNG).",
-                "consumes": [
-                    "multipart/form-data"
-                ],
+                "description": "API for downloading images.\nDownload images file (JPEG/PNG).",
                 "produces": [
                     "text/plain"
                 ],
-                "summary": "Download an image",
+                "summary": "Download images",
                 "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit of images to fetch",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
                     {
                         "type": "integer",
                         "description": "Offset of images to fetch",

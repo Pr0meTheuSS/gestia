@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"gestia/internal/app/gestia/models"
 	"gestia/internal/app/gestia/usecases"
@@ -14,6 +15,7 @@ type IRootHandler interface {
 	HelloHandler(w http.ResponseWriter, r *http.Request)
 	UploadImageHandler(w http.ResponseWriter, r *http.Request)
 	DownloadImagesHandler(w http.ResponseWriter, r *http.Request)
+	GetImageHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type RootHandler struct {
@@ -38,34 +40,85 @@ func (rh *RootHandler) HelloHandler(w http.ResponseWriter, r *http.Request) {
 // @version 1.0
 // @description API for downloading images.
 // @BasePath /
-
-// @Summary Download an image
-// @Description Download an image file (JPEG/PNG).
-// @Accept  multipart/form-data
+// @Summary Download images
+// @Description Download images file (JPEG/PNG).
+// @Param limit query int true "Limit of images to fetch"
 // @Param offset query int true	"Offset of images to fetch"
 // @Produce text/plain
 // @Success 200
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /v1/images/ [get]
+
+type ImageDTO struct {
+	UUID string `json:"uuid"`
+	URL  string `json:"url"`
+}
+
 func (rh *RootHandler) DownloadImagesHandler(w http.ResponseWriter, r *http.Request) {
-	var offset int64
+	var limit int = 10
+	var offset int
 	var err error
 
+	if limitString := r.URL.Query().Get("limit"); limitString != "" {
+		limit, err = strconv.Atoi(limitString)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Download failed with parse limit %s.", err.Error()), http.StatusBadRequest)
+			return
+		}
+	}
+
 	if offsetString := r.URL.Query().Get("offset"); offsetString != "" {
-		offset, err = strconv.ParseInt(offsetString, 10, 32)
+		offset, err = strconv.Atoi(offsetString)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Download failed with parse offset %s.", err.Error()), http.StatusBadRequest)
 			return
 		}
 	}
 
-	image, err := rh.imageUsecase.DownloadImages(int(offset))
+	images, err := rh.imageUsecase.DownloadImages(limit, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Download failed with fetch images from repository: %s.", err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	w.Write(image.Data)
+	imagesResponse := []ImageDTO{}
+	for _, img := range images {
+		imageDTO := ImageDTO{
+			UUID: img.ID,
+			URL:  fmt.Sprintf("http://localhost:9090/v1/images/%s", img.ID),
+		}
+		imagesResponse = append(imagesResponse, imageDTO)
+	}
+	responseJson, err := json.Marshal(imagesResponse)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Download failed with marshal json: %s.", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(responseJson)
+}
+
+// Новый обработчик для получения изображения по UUID
+func (rh *RootHandler) GetImageHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	// Отладочный вывод
+	fmt.Println("All route parameters:", r.URL)
+	fmt.Println(id)
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	img, err := rh.imageUsecase.GetImageByID(id)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch image: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	// Устанавливаем Content-Type в зависимости от типа изображения
+	w.Header().Set("Content-Type", http.DetectContentType(img.Data))
+	w.Write(img.Data)
 }
 
 // @title File Upload API

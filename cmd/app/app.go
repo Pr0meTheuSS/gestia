@@ -45,8 +45,13 @@ func NewApp(logger *zap.Logger) (*App, error) {
 	mainHandler := handlers.NewRootHandler(*imageUsecase)
 	// Настройка маршрутов
 	r.Get("/", mainHandler.HelloHandler)
-	r.Get("/v1/images/", mainHandler.DownloadImagesHandler)
-	r.Post("/v1/images/", mainHandler.UploadImageHandler)
+
+	r.Route("/v1/images", func(r chi.Router) {
+		r.Get("/", mainHandler.DownloadImagesHandler)
+		r.Post("/", mainHandler.UploadImageHandler)
+		r.Get("/{id}", mainHandler.GetImageHandler)
+	})
+
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	return &App{

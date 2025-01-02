@@ -3,10 +3,15 @@ info:
 paths:
   /v1/images/:
     get:
-      consumes:
-      - multipart/form-data
-      description: Download an image file (JPEG/PNG).
+      description: |-
+        API for downloading images.
+        Download images file (JPEG/PNG).
       parameters:
+      - description: Limit of images to fetch
+        in: query
+        name: limit
+        required: true
+        type: integer
       - description: Offset of images to fetch
         in: query
         name: offset
@@ -21,7 +26,7 @@ paths:
           description: Internal Server Error
           schema:
             type: string
-      summary: Download an image
+      summary: Download images
     post:
       consumes:
       - multipart/form-data

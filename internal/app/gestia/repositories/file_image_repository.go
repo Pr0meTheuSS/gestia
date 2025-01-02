@@ -3,6 +3,7 @@ package repositories
 import (
 	"gestia/internal/app/gestia/models"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/google/uuid"
@@ -23,23 +24,28 @@ func NewImageRepository() IImageRepository {
 	}
 }
 
-func (i *ImageRepository) GetImages(offset int) (models.Image, error) {
+func (i *ImageRepository) GetImages(limit, offset int) ([]models.Image, error) {
 	var images []models.Image
 	for _, img := range i.images {
 		images = append(images, img)
 	}
+	offset = min(offset, len(images))
 
-	return images[offset], nil
+	return images[offset:min(offset+limit, len(images))], nil
 }
 
 func (i *ImageRepository) AddImage(image models.Image) error {
 	filePath := "assets/test/images/uploads/" + image.Name
+	var err error
 
-	if err := os.MkdirAll("assets/test/images/uploads/", os.ModePerm); err != nil {
+	if err = os.MkdirAll("assets/test/images/uploads/", os.ModePerm); err != nil {
 		return err
 	}
 	image.ID = uuid.NewString()
-	image.Path = filePath
+	image.Path, err = filepath.Abs(filePath)
+	if err != nil {
+		return err
+	}
 
 	i.mu.Lock()
 	i.images[image.ID] = image
@@ -56,4 +62,9 @@ func (i *ImageRepository) AddImage(image models.Image) error {
 	}
 
 	return nil
+}
+
+// GetImageByID implements IImageRepository.
+func (i *ImageRepository) GetImageByID(id string) (models.Image, error) {
+	return i.images[id], nil
 }
