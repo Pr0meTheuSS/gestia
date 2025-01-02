@@ -2,11 +2,71 @@ package handlers
 
 import (
 	"fmt"
+	"gestia/internal/app/gestia/models"
+	"gestia/internal/app/gestia/usecases"
 	"io"
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 )
+
+type IRootHandler interface {
+	HelloHandler(w http.ResponseWriter, r *http.Request)
+	UploadImageHandler(w http.ResponseWriter, r *http.Request)
+	DownloadImagesHandler(w http.ResponseWriter, r *http.Request)
+}
+
+type RootHandler struct {
+	imageUsecase usecases.ImageUsecase
+}
+
+var (
+	_ IRootHandler = (*RootHandler)(nil)
+)
+
+func NewRootHandler(imageUsecase usecases.ImageUsecase) IRootHandler {
+	return &RootHandler{
+		imageUsecase: imageUsecase,
+	}
+}
+
+func (rh *RootHandler) HelloHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello, world!"))
+}
+
+// @title File Download API
+// @version 1.0
+// @description API for downloading images.
+// @BasePath /
+
+// @Summary Download an image
+// @Description Download an image file (JPEG/PNG).
+// @Accept  multipart/form-data
+// @Param offset query int true	"Offset of images to fetch"
+// @Produce text/plain
+// @Success 200
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /v1/images/ [get]
+func (rh *RootHandler) DownloadImagesHandler(w http.ResponseWriter, r *http.Request) {
+	var offset int64
+	var err error
+
+	if offsetString := r.URL.Query().Get("offset"); offsetString != "" {
+		offset, err = strconv.ParseInt(offsetString, 10, 32)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Download failed with parse offset %s.", err.Error()), http.StatusBadRequest)
+			return
+		}
+	}
+
+	image, err := rh.imageUsecase.DownloadImages(int(offset))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Download failed with fetch images from repository: %s.", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Write(image.Data)
+}
 
 // @title File Upload API
 // @version 1.0
@@ -22,7 +82,8 @@ import (
 // @Failure 400 {string} string "Bad Request"
 // @Failure 500 {string} string "Internal Server Error"
 // @Router /v1/images/ [post]
-func UploadImageHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RootHandler) UploadImageHandler(w http.ResponseWriter, r *http.Request) {
+
 	// Ограничение на размер загружаемого файла (например, 10 MB)
 	const MaxUploadSize = 10 * 1024 * 1024
 
@@ -46,44 +107,26 @@ func UploadImageHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("File Size: %d\n", handler.Size)
 	log.Printf("MIME Header: %v\n", handler.Header)
 
+	newImage := models.Image{
+		Name: handler.Filename,
+		Data: []byte{},
+	}
+
 	// Чтение содержимого файла
-	fileBytes, err := io.ReadAll(file)
+	newImage.Data, err = io.ReadAll(file)
 	if err != nil {
 		http.Error(w, "Failed to read the file.", http.StatusInternalServerError)
 		return
 	}
 
 	// Проверка типа файла (например, изображение)
-	fileType := http.DetectContentType(fileBytes)
+	fileType := http.DetectContentType(newImage.Data)
 	if fileType != "image/jpeg" && fileType != "image/png" {
 		http.Error(w, "The provided file format is not allowed. Please upload a JPEG or PNG image.", http.StatusBadRequest)
 		return
 	}
 
-	// Сохранение файла (опционально)
-	// Создаем путь к файлу
-	filePath := "assets/test/images/uploads/" + handler.Filename
-
-	// Создаём директорию, если её нет
-	if err := os.MkdirAll("assets/test/images/uploads/", os.ModePerm); err != nil {
-		http.Error(w, fmt.Sprintf("Unable to create directory. Error: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
-	// Открываем файл, создавая его, если он отсутствует
-	out, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Unable to save the file. Error: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	defer out.Close()
-
-	fmt.Println(out.Name())
-	// Записываем содержимое файла на диск
-	if _, err := out.Write(fileBytes); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save the file. Error: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
+	rh.imageUsecase.UploadImage(newImage)
 
 	// Возвращаем успешный ответ
 	w.WriteHeader(http.StatusOK)

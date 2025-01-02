@@ -2,6 +2,26 @@ info:
   contact: {}
 paths:
   /v1/images/:
+    get:
+      consumes:
+      - multipart/form-data
+      description: Download an image file (JPEG/PNG).
+      parameters:
+      - description: Offset of images to fetch
+        in: query
+        name: offset
+        required: true
+        type: integer
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Download an image
     post:
       consumes:
       - multipart/form-data

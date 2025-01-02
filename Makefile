@@ -7,3 +7,7 @@ run:
 generate-coverage:
 	go test ./... -coverprofile=coverage.out
 	go tool cover -html=coverage.out
+
+.PHONY: generate-swagger
+generate-swagger:
+	swag init -d "./" -g "cmd/main.go"

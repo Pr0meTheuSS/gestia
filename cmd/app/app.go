@@ -1,7 +1,9 @@
 package app
 
 import (
-	handlers "gestia/internal/app/gestia"
+	"gestia/internal/app/gestia/handlers"
+	"gestia/internal/app/gestia/repositories"
+	"gestia/internal/app/gestia/usecases"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -38,9 +40,13 @@ func NewApp(logger *zap.Logger) (*App, error) {
 		MaxAge:           500, // Maximum value not ignored by any of major browsers
 	}))
 
+	imageRepository := repositories.NewImageRepository()
+	imageUsecase := usecases.NewImageUsecase(imageRepository)
+	mainHandler := handlers.NewRootHandler(*imageUsecase)
 	// Настройка маршрутов
-	r.Get("/", handlers.RootHandler)
-	r.Post("/v1/images/", handlers.UploadImageHandler)
+	r.Get("/", mainHandler.HelloHandler)
+	r.Get("/v1/images/", mainHandler.DownloadImagesHandler)
+	r.Post("/v1/images/", mainHandler.UploadImageHandler)
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	return &App{
