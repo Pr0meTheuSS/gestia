@@ -40,7 +40,7 @@ func NewApp(logger *zap.Logger) (*App, error) {
 		MaxAge:           500, // Maximum value not ignored by any of major browsers
 	}))
 
-	imageRepository := repositories.NewImageRepository()
+	imageRepository := repositories.NewMinioImageRepository()
 	imageUsecase := usecases.NewImageUsecase(imageRepository)
 	mainHandler := handlers.NewRootHandler(*imageUsecase)
 	// Настройка маршрутов

@@ -179,7 +179,11 @@ func (rh *RootHandler) UploadImageHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	rh.imageUsecase.UploadImage(newImage)
+	if err := rh.imageUsecase.UploadImage(newImage); err != nil {
+		http.Error(w, fmt.Sprintf("Failed on usecase.UploadImage(). Error: %s", err.Error()), http.StatusBadRequest)
+		return
+
+	}
 
 	// Возвращаем успешный ответ
 	w.WriteHeader(http.StatusOK)
