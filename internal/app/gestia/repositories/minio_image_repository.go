@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"bytes"
+	"fmt"
 	"gestia/internal/app/gestia/models"
 	"log"
 	"sync"
@@ -14,7 +15,7 @@ type MinioImageRepository struct {
 	minioClient *minio.Client
 	bucketName  string
 	images      map[string]models.Image
-	mu          sync.Mutex
+	mu          sync.RWMutex
 }
 
 var (
@@ -26,7 +27,7 @@ func NewMinioImageRepository() IImageRepository {
 		minioClient: &minio.Client{},
 		bucketName:  "photos",
 		images:      map[string]models.Image{},
-		mu:          sync.Mutex{},
+		mu:          sync.RWMutex{},
 	}
 
 	var err error
@@ -59,7 +60,8 @@ func (m *MinioImageRepository) AddImage(image models.Image) error {
 		return err
 	}
 
-	// image.Path = fmt.Sprintf("http://%s:d/%s", "localhost", 9000, image.ID)
+	image.Path = fmt.Sprintf("http://%s:%d/%s", "localhost", 9000, image.ID)
+
 	m.mu.Lock()
 	m.images[image.ID] = image
 	m.mu.Unlock()
@@ -68,20 +70,23 @@ func (m *MinioImageRepository) AddImage(image models.Image) error {
 }
 
 func (m *MinioImageRepository) GetImageByID(id string) (models.Image, error) {
-	panic("unimplemented")
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.images[id], nil
 }
 
 func (m *MinioImageRepository) GetImages(limit int, offset int) ([]models.Image, error) {
-	panic("unimplemented")
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var images []models.Image
+	for _, img := range m.images {
+		images = append(images, img)
+	}
+
+	begin := min(offset, len(images))
+	end := min(offset+limit, len(images))
+
+	return images[begin:end], nil
 }
-
-// Функция для получения изображения
-// func GetImageURL(bucketName string, objectName string) (string, error) {
-// 	// Генерируем ссылку на объект
-// 	presignedURL, err := m.minioClient.PresignedGetObject(bucketName, objectName, 3600, nil)
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	return presignedURL.String(), nil
-// }
